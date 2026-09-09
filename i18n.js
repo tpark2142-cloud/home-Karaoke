@@ -1,4 +1,7 @@
 const korean = {
+  'Loading video title...': '영상 제목을 불러오는 중...',
+  'Video title filled automatically.': '영상 제목이 자동으로 입력되었습니다.',
+  'Could not load the video title. You can enter a title yourself.': '영상 제목을 불러오지 못했습니다. 제목을 직접 입력할 수 있습니다.',
   'Audio recording': '오디오 녹음', 'Recording time': '녹음 시간',
   'Source: selected microphone / room sound': '녹음 소스: 선택한 마이크 / 주변 소리',
   'Record': '녹음', 'Stop': '정지', 'Download audio': '오디오 다운로드',

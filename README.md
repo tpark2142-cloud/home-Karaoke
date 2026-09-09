@@ -4,6 +4,7 @@ Run `node server.cjs` in this folder and open the local URL it prints. Internet 
 
 1. Enter a song title, then use Find karaoke on YouTube. Choose an instrumental/karaoke video with on-screen lyrics and paste its video URL into the app.
 2. Add songs to the queue. Click a queued song to play it; the next song starts when the current video ends, subject to browser autoplay settings.
+   Pasting a YouTube link automatically fills an empty song title from YouTube's video metadata. Titles you type yourself are preserved. Adding a song waits for a pending title lookup (up to eight seconds); if metadata is unavailable, a manually entered title or the video ID is used. This does not require a YouTube Data API key and does not perform song-title searches.
 3. Use the video's own lyrics, or find lyrics online and paste text into the separate lyrics editor. Import UTF-8 .txt or .lrc files. Timed LRC lines follow the embedded player's clock. A positive timing offset makes the lyrics advance earlier. Plain text scrolls manually.
 4. Pair a Bluetooth microphone in Windows and check Settings > System > Sound > Input. Click Connect / test microphone and grant browser permission. The meter confirms input.
 

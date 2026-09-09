@@ -115,6 +115,55 @@ function videoId(value) {
     return /^[\w-]{11}$/.test(id || '') ? id : null;
   } catch { return null; }
 }
+const videoTitles = new Map();
+const pendingTitles = new Map();
+let autoTitle = '', autoTitleId = null, titleEditRevision = 0, linkRevision = 0, titleTimer, addingSong = false;
+const titleStatus = (message) => translatedMessage($('titleStatus'), message);
+function fetchVideoTitle(id) {
+  if (videoTitles.has(id)) return Promise.resolve(videoTitles.get(id));
+  if (pendingTitles.has(id)) return pendingTitles.get(id);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  const query = new URLSearchParams({url: `https://www.youtube.com/watch?v=${id}`, format: 'json'});
+  const request = (async () => {
+    try {
+      const response = await fetch(`https://www.youtube.com/oembed?${query}`, {signal: controller.signal, credentials: 'omit'});
+      if (!response.ok) return null;
+      const data = await response.json();
+      if (typeof data.title !== 'string' || !data.title.trim()) return null;
+      const title = data.title.trim().slice(0, $('songTitle').maxLength);
+      videoTitles.set(id, title);
+      return title;
+    } catch { return null; }
+    finally { clearTimeout(timeout); pendingTitles.delete(id); }
+  })();
+  pendingTitles.set(id, request);
+  return request;
+}
+async function fillVideoTitle(id) {
+  const editRevision = titleEditRevision, urlRevision = linkRevision;
+  titleStatus('Loading video title...');
+  const title = await fetchVideoTitle(id);
+  // Late responses must not replace a newer link or a title edited by the user.
+  if (urlRevision !== linkRevision || editRevision !== titleEditRevision || videoId($('videoUrl').value.trim()) !== id) return;
+  if ($('songTitle').value.trim() && $('songTitle').value !== autoTitle) return;
+  if (title) {
+    $('songTitle').value = title; autoTitle = title; autoTitleId = id;
+    updateSearch(title); titleStatus('Video title filled automatically.');
+  } else titleStatus('Could not load the video title. You can enter a title yourself.');
+}
+$('videoUrl').addEventListener('input', () => {
+  clearTimeout(titleTimer); linkRevision++;
+  const id = videoId($('videoUrl').value.trim());
+  if (autoTitleId !== id && $('songTitle').value === autoTitle) {
+    $('songTitle').value = ''; autoTitle = ''; autoTitleId = null; updateSearch('');
+  }
+  titleStatus('');
+  if (id && (!$('songTitle').value.trim() || $('songTitle').value === autoTitle)) {
+    titleStatus('Loading video title...');
+    titleTimer = setTimeout(() => fillVideoTitle(id), 350);
+  }
+});
 function renderQueue() {
   $('queue').replaceChildren();
   $('queueCount').textContent = t(songs.length === 1 ? '{count} song' : '{count} songs', {count: songs.length});
@@ -148,19 +197,31 @@ function selectSong(id) {
 }
 function next() { const index = songs.findIndex(s => s.id === currentId); if (index >= 0 && songs[index + 1]) selectSong(songs[index + 1].id); else status('End of the queue.'); }
 $('nextSong').onclick = next;
-$('songForm').onsubmit = (event) => {
+$('songForm').onsubmit = async (event) => {
   event.preventDefault(); const id = videoId($('videoUrl').value.trim());
   if (!id) return status('Enter a valid YouTube video link.');
-  const song = {id: crypto.randomUUID(), videoId: id, title: $('songTitle').value.trim() || `YouTube ${id}`, lyrics: '', offset: 0};
-  songs.push(song); save(); renderQueue(); if (!currentId) selectSong(song.id);
-  $('videoUrl').value = ''; $('songTitle').value = '';
+  if (addingSong) return;
+  addingSong = true; clearTimeout(titleTimer);
+  const submit = $('songForm').querySelector('button[type="submit"]');
+  const urlRevision = linkRevision; submit.disabled = true;
+  try {
+    if (!$('songTitle').value.trim()) await fillVideoTitle(id);
+    if (urlRevision !== linkRevision || videoId($('videoUrl').value.trim()) !== id) return;
+    const song = {id: crypto.randomUUID(), videoId: id, title: $('songTitle').value.trim() || `YouTube ${id}`, lyrics: '', offset: 0};
+    songs.push(song); save(); renderQueue(); if (!currentId) selectSong(song.id);
+    $('videoUrl').value = ''; $('songTitle').value = '';
+    autoTitle = ''; autoTitleId = null; linkRevision++; titleEditRevision++; titleStatus('');
+  } finally { addingSong = false; submit.disabled = false; }
 };
 function updateSearch(title) {
   const koreanSong = $('songLanguage').value === 'ko';
   $('youtubeSearch').href = `https://www.youtube.com/results?search_query=${encodeURIComponent((title || '') + (koreanSong ? ' 노래방 반주 가사' : ' English karaoke lyrics'))}`;
   $('lyricsSearch').href = `https://www.google.com/search?q=${encodeURIComponent((title || (koreanSong ? '노래' : 'song')) + (koreanSong ? ' 가사' : ' lyrics'))}`;
 }
-$('songTitle').oninput = () => updateSearch($('songTitle').value);
+$('songTitle').oninput = () => {
+  titleEditRevision++; autoTitle = ''; autoTitleId = null; titleStatus('');
+  clearTimeout(titleTimer); updateSearch($('songTitle').value);
+};
 $('songLanguage').onchange = () => {
   try { localStorage.setItem('home-karaoke-song-language', $('songLanguage').value); } catch {}
   updateSearch($('songTitle').value.trim() || songs.find(s => s.id === currentId)?.title || '');

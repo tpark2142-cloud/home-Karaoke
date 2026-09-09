@@ -14,6 +14,7 @@
     .language-switch button[aria-pressed="true"] { background: var(--accent); color: #14220e; }
     .search-row { align-items: center; flex-wrap: wrap; }
     .search-language { width: 170px; flex-shrink: 0; }
+    #titleStatus { color: var(--muted); font-size: 12px; line-height: 1.5; min-height: 18px; margin: 8px 0 0; }
     .editor-actions > button { min-width: 100px; white-space: nowrap; }
     .recording-section { border-bottom: 1px solid #33393b; padding-bottom: 24px; margin-bottom: 24px; }
     .recording-controls { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -46,6 +47,7 @@
         <label class="url"><span data-i18n>YouTube link</span><input id="videoUrl" type="text" placeholder="https://www.youtube.com/watch?v=..." required></label>
         <button class="primary" type="submit"><i data-lucide="list-plus"></i><span data-i18n>Add song</span></button>
       </form>
+      <p id="titleStatus" role="status" aria-live="polite"></p>
       <div class="search-row"><label class="search-language"><span data-i18n>Song language</span><select id="songLanguage"><option value="en">English / 팝송</option><option value="ko">한국어 / Korean</option></select></label><a id="youtubeSearch" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=karaoke+lyrics"><span data-i18n>Find karaoke on YouTube</span><i data-lucide="external-link"></i></a><a id="lyricsSearch" target="_blank" rel="noopener" href="https://www.google.com/search?q=song+lyrics"><span data-i18n>Find lyrics online</span><i data-lucide="external-link"></i></a></div>
       <div class="video-shell"><div id="player"></div><div id="emptyStage"><i data-lucide="mic-vocal"></i><h2 data-i18n>Tonight's first song</h2><p data-i18n>No song selected</p></div></div>
       <div class="transport"><div><span class="eyebrow" data-i18n>NOW SINGING</span><h2 id="nowPlaying">Your stage is ready</h2></div><a id="openYoutube" href="https://www.youtube.com" target="_blank" rel="noopener" title="Open on YouTube" aria-label="Open on YouTube"><i data-lucide="external-link"></i></a><button id="nextSong" title="Next song" aria-label="Next song"><i data-lucide="skip-forward"></i></button></div>
