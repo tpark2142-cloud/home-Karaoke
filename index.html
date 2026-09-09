@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Home Karaoke</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .language-switch { display: flex; }
+    .language-switch button { min-width: 44px; border-radius: 0; }
+    .language-switch button:first-child { border-radius: 6px 0 0 6px; }
+    .language-switch button:last-child { border-radius: 0 6px 6px 0; }
+    .language-switch button[aria-pressed="true"] { background: var(--accent); color: #14220e; }
+    .search-row { align-items: center; flex-wrap: wrap; }
+    .search-language { width: 170px; flex-shrink: 0; }
+    .editor-actions > button { min-width: 100px; white-space: nowrap; }
+    header { gap: 12px; }
+    html[lang="ko"] { font-family: "Malgun Gothic", "Segoe UI", sans-serif; }
+    @media (max-width: 420px) { header { flex-wrap: wrap; } header > .tools { margin-left: auto; } }
+  </style>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  <script src="i18n.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header><div><span class="eyebrow" data-i18n>YOUR LIVING ROOM, LIVE</span><h1 data-i18n>Home Karaoke</h1></div><div class="tools"><div class="language-switch" role="group" aria-label="Language"><button id="langEn" lang="en" aria-pressed="true">EN</button><button id="langKo" lang="ko" aria-pressed="false">KR</button></div><button id="fullscreen" title="Full screen" aria-label="Full screen"><i data-lucide="maximize"></i></button></div></header>
+  <main>
+    <section class="stage">
+      <form id="songForm" class="song-form">
+        <label><span data-i18n>Song title</span><input id="songTitle" placeholder="Song / Artist" maxlength="160"></label>
+        <label class="url"><span data-i18n>YouTube link</span><input id="videoUrl" type="text" placeholder="https://www.youtube.com/watch?v=..." required></label>
+        <button class="primary" type="submit"><i data-lucide="list-plus"></i><span data-i18n>Add song</span></button>
+      </form>
+      <div class="search-row"><label class="search-language"><span data-i18n>Song language</span><select id="songLanguage"><option value="en">English / 팝송</option><option value="ko">한국어 / Korean</option></select></label><a id="youtubeSearch" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=karaoke+lyrics"><span data-i18n>Find karaoke on YouTube</span><i data-lucide="external-link"></i></a><a id="lyricsSearch" target="_blank" rel="noopener" href="https://www.google.com/search?q=song+lyrics"><span data-i18n>Find lyrics online</span><i data-lucide="external-link"></i></a></div>
+      <div class="video-shell"><div id="player"></div><div id="emptyStage"><i data-lucide="mic-vocal"></i><h2 data-i18n>Tonight's first song</h2><p data-i18n>No song selected</p></div></div>
+      <div class="transport"><div><span class="eyebrow" data-i18n>NOW SINGING</span><h2 id="nowPlaying">Your stage is ready</h2></div><a id="openYoutube" href="https://www.youtube.com" target="_blank" rel="noopener" title="Open on YouTube" aria-label="Open on YouTube"><i data-lucide="external-link"></i></a><button id="nextSong" title="Next song" aria-label="Next song"><i data-lucide="skip-forward"></i></button></div>
+      <p id="status" role="status">Ready</p>
+      <section class="lyrics-section" aria-label="Lyrics">
+        <div class="section-heading"><h2 data-i18n>Lyrics</h2><div class="tools"><label class="compact"><span data-i18n>Timing offset (s)</span><input id="offset" type="number" min="-60" max="60" step="0.5" value="0"></label><button id="fontDown" title="Smaller lyrics" aria-label="Smaller lyrics"><i data-lucide="minus"></i></button><button id="fontUp" title="Larger lyrics" aria-label="Larger lyrics"><i data-lucide="plus"></i></button></div></div>
+        <div id="lyricsDisplay" tabindex="0"><p class="muted">No separate lyrics loaded</p></div>
+        <details><summary data-i18n>Edit lyrics / Import LRC</summary><textarea id="lyricsInput" rows="7" aria-label="Lyrics text" placeholder="Paste lyrics or timed LRC text"></textarea><div class="editor-actions"><label class="file-button"><i data-lucide="upload"></i><span data-i18n>Import .lrc / .txt</span><input id="lyricsFile" type="file" accept=".lrc,.txt,text/plain" hidden></label><button id="applyLyrics" class="primary" data-i18n>Apply lyrics</button><button id="clearLyrics" data-i18n>Clear</button></div></details>
+      </section>
+    </section>
+    <aside>
+      <section class="queue-section"><div class="section-heading"><h2 data-i18n>Tonight's queue</h2><span id="queueCount">0 songs</span></div><ol id="queue"></ol></section>
+      <section class="mic-section"><div class="section-heading"><h2 data-i18n>Microphone</h2><i data-lucide="mic"></i></div><button id="connectMic" data-i18n>Connect / test microphone</button><label><span data-i18n>Input device</span><select id="micDevice" disabled><option value="" data-i18n>System default</option></select></label><meter id="micMeter" min="0" max="1" value="0" aria-label="Microphone level"></meter><p id="micStatus" role="status">Not connected</p><label class="toggle"><input id="monitor" type="checkbox" disabled><span data-i18n>Hear microphone through computer</span></label><label><span data-i18n>Voice volume</span><input id="micGain" type="range" min="0" max="1.5" step="0.05" value="0.7"></label><button id="disconnectMic" disabled data-i18n>Disconnect microphone</button></section>
+    </aside>
+  </main>
+  <footer>HOME KARAOKE <span data-i18n>Made for a night in</span></footer>
+</body>
+</html>
