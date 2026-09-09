@@ -15,6 +15,20 @@
     .search-row { align-items: center; flex-wrap: wrap; }
     .search-language { width: 170px; flex-shrink: 0; }
     .editor-actions > button { min-width: 100px; white-space: nowrap; }
+    .recording-section { border-bottom: 1px solid #33393b; padding-bottom: 24px; margin-bottom: 24px; }
+    .recording-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+    .recording-controls button { flex: 1; white-space: nowrap; }
+    #recordStart { border-color: #e6a9bd; }
+    #recordStart svg { color: #f28aaa; }
+    #recordTimer { font-variant-numeric: tabular-nums; font-size: 20px; }
+    #recordStatus, .recording-source { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    #recordings { list-style: none; padding: 0; margin: 0; }
+    #recordings li { border-top: 1px solid #33393b; padding-top: 14px; margin-top: 14px; }
+    #recordings h3 { font-size: 13px; overflow-wrap: anywhere; margin: 0 0 10px; }
+    #recordings audio { width: 100%; height: 40px; }
+    .take-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+    .take-actions a { flex: 1; }
+    .take-actions button span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     header { gap: 12px; }
     html[lang="ko"] { font-family: "Malgun Gothic", "Segoe UI", sans-serif; }
     @media (max-width: 420px) { header { flex-wrap: wrap; } header > .tools { margin-left: auto; } }
@@ -43,6 +57,13 @@
       </section>
     </section>
     <aside>
+      <section class="recording-section" aria-label="Audio recording">
+        <div class="section-heading"><h2 data-i18n>Audio recording</h2><output id="recordTimer" aria-label="Recording time">00:00</output></div>
+        <p class="recording-source" data-i18n>Source: selected microphone / room sound</p>
+        <div class="recording-controls"><button id="recordStart"><i data-lucide="circle"></i><span data-i18n>Record</span></button><button id="recordStop" disabled><i data-lucide="square"></i><span data-i18n>Stop</span></button></div>
+        <p id="recordStatus" role="status"></p>
+        <ul id="recordings"></ul>
+      </section>
       <section class="queue-section"><div class="section-heading"><h2 data-i18n>Tonight's queue</h2><span id="queueCount">0 songs</span></div><ol id="queue"></ol></section>
       <section class="mic-section"><div class="section-heading"><h2 data-i18n>Microphone</h2><i data-lucide="mic"></i></div><button id="connectMic" data-i18n>Connect / test microphone</button><label><span data-i18n>Input device</span><select id="micDevice" disabled><option value="" data-i18n>System default</option></select></label><meter id="micMeter" min="0" max="1" value="0" aria-label="Microphone level"></meter><p id="micStatus" role="status">Not connected</p><label class="toggle"><input id="monitor" type="checkbox" disabled><span data-i18n>Hear microphone through computer</span></label><label><span data-i18n>Voice volume</span><input id="micGain" type="range" min="0" max="1.5" step="0.05" value="0.7"></label><button id="disconnectMic" disabled data-i18n>Disconnect microphone</button></section>
     </aside>

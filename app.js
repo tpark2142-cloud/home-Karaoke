@@ -4,6 +4,97 @@ const status = (message, values) => translatedMessage($('status'), message, valu
 const micStatus = (message) => translatedMessage($('micStatus'), message);
 let songs = [], currentId = null, player, playerReady = false, lines = [], activeLine = -1, fontSize = 28;
 let audioContext, stream, source, gain, analyser, meterFrame;
+let recorder = null, recordStarting = false, recordDone = null, recordClock = null, takeNumber = 0;
+const takes = new Map();
+const recordingSupported = !!(window.MediaRecorder && navigator.mediaDevices?.getUserMedia);
+const recordStatus = (key) => translatedMessage($('recordStatus'), key);
+function recordingControls() {
+  const busy = recordStarting || recorder !== null;
+  $('recordStart').disabled = busy || !recordingSupported;
+  $('recordStop').disabled = !recorder || recorder.state === 'inactive';
+  $('connectMic').disabled = busy;
+  $('micDevice').disabled = busy || !stream;
+  $('disconnectMic').disabled = busy || !stream;
+}
+function addTake(blob, title) {
+  const url = URL.createObjectURL(blob);
+  takes.set(url, blob.size);
+  const li = document.createElement('li');
+  const heading = document.createElement('h3');
+  if (title) heading.textContent = title;
+  else translatedMessage(heading, 'Recording {number}', {number: ++takeNumber});
+  const audio = document.createElement('audio'); audio.controls = true; audio.src = url; audio.preload = 'metadata';
+  const actions = document.createElement('div'); actions.className = 'take-actions';
+  const download = document.createElement('a'); download.href = url;
+  const extension = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm';
+  download.download = `home-karaoke-${new Date().toISOString().replace(/[:.]/g, '-')}.${extension}`;
+  download.innerHTML = '<i data-lucide="download"></i><span></span>';
+  translatedMessage(download.querySelector('span'), 'Download audio');
+  const remove = document.createElement('button');
+  remove.title = t('Delete recording');
+  remove.innerHTML = '<i data-lucide="trash-2"></i><span></span>';
+  translatedMessage(remove.querySelector('span'), 'Delete recording');
+  remove.onclick = () => { audio.pause(); audio.removeAttribute('src'); audio.load(); URL.revokeObjectURL(url); takes.delete(url); li.remove(); };
+  actions.append(download, remove); li.append(heading, audio, actions); $('recordings').prepend(li); icons();
+}
+function stopRecording() {
+  if (!recorder) return Promise.resolve();
+  if (recorder.state !== 'inactive') {
+    recordStatus('Finishing recording...'); recorder.stop(); recordingControls();
+  }
+  return recordDone;
+}
+async function startRecording() {
+  if (recordStarting || recorder || !recordingSupported) return;
+  const usedBytes = [...takes.values()].reduce((sum, size) => sum + size, 0);
+  if (usedBytes >= 100 * 1024 * 1024) return recordStatus('Recording storage is full. Download and delete older takes first.');
+  recordStarting = true; recordingControls();
+  $('recordings').querySelectorAll('audio').forEach(audio => audio.pause());
+  try {
+    if (!stream?.getAudioTracks().some(track => track.readyState === 'live')) {
+      recordStatus('Requesting microphone access...'); await connectMic();
+    }
+    if (!stream?.getAudioTracks().some(track => track.readyState === 'live')) throw new Error('No microphone');
+    // Speech processing can suppress the music when recording sound in the room.
+    try { await stream.getAudioTracks()[0].applyConstraints({echoCancellation: false, noiseSuppression: false, autoGainControl: false}); } catch {}
+    const mimeType = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus'].find(type => MediaRecorder.isTypeSupported(type));
+    const capture = new MediaRecorder(stream, mimeType ? {mimeType} : undefined);
+    recorder = capture;
+    let finish; recordDone = new Promise(resolve => { finish = resolve; });
+    const chunks = []; let bytes = 0, limited = false, failed = false;
+    const title = songs.find(song => song.id === currentId)?.title || '';
+    const startedAt = performance.now();
+    $('recordTimer').textContent = '00:00';
+    capture.ondataavailable = event => {
+      if (event.data.size) { chunks.push(event.data); bytes += event.data.size; }
+      if (bytes + usedBytes >= 100 * 1024 * 1024 && capture.state !== 'inactive') { limited = true; stopRecording(); }
+    };
+    capture.onerror = () => { failed = true; stopRecording(); };
+    capture.onstop = () => {
+      clearInterval(recordClock); recordClock = null;
+      try {
+        const blob = new Blob(chunks, {type: capture.mimeType || chunks[0]?.type || 'audio/webm'});
+        if (blob.size) addTake(blob, title);
+        recordStatus(!blob.size ? 'No audio was captured. Check your microphone and try again.' : failed ? 'Recording interrupted. Any captured audio is available below.' : limited ? 'Recording stopped at the time or memory limit. Download your take.' : 'Recording ready. Download it before leaving this page.');
+      } finally { recorder = null; recordStarting = false; recordingControls(); finish(); }
+    };
+    capture.start(1000);
+    recordClock = setInterval(() => {
+      const seconds = Math.floor((performance.now() - startedAt) / 1000);
+      $('recordTimer').textContent = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+      if (seconds >= 1800 && capture.state !== 'inactive') { limited = true; stopRecording(); }
+    }, 250);
+    recordStatus('Recording microphone audio...');
+  } catch {
+    recorder = null; clearInterval(recordClock);
+    recordStatus('Could not start recording. Check microphone permissions and try again.');
+  } finally { recordStarting = false; recordingControls(); }
+}
+$('recordStart').onclick = startRecording;
+$('recordStop').onclick = stopRecording;
+window.addEventListener('beforeunload', event => {
+  if (recorder || takes.size) { event.preventDefault(); event.returnValue = ''; }
+});
 try {
   const saved = JSON.parse(localStorage.getItem('home-karaoke-songs') || '[]');
   if (Array.isArray(saved)) songs = saved.filter(s => s && /^[\w-]{11}$/.test(s.videoId) && typeof s.title === 'string' && typeof s.id === 'string').map(s => ({...s, lyrics: typeof s.lyrics === 'string' ? s.lyrics : '', offset: Number(s.offset) || 0}));
@@ -128,6 +219,7 @@ $('fontDown').onclick = () => { fontSize = Math.max(18, fontSize - 2); $('lyrics
 $('fontUp').onclick = () => { fontSize = Math.min(54, fontSize + 2); $('lyricsDisplay').style.setProperty('--lyric-size', `${fontSize}px`); };
 $('fullscreen').onclick = async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { status('Full screen is unavailable in this browser.'); } };
 async function stopMic() {
+  await stopRecording();
   cancelAnimationFrame(meterFrame); stream?.getTracks().forEach(t => t.stop()); stream = null;
   if (audioContext && audioContext.state !== 'closed') await audioContext.close();
   audioContext = null; $('micMeter').value = 0; $('monitor').checked = false; $('monitor').disabled = true; $('disconnectMic').disabled = true; $('micDevice').disabled = true;
@@ -146,7 +238,7 @@ async function connectMic(deviceId = '') {
     function meter() { analyser.getByteTimeDomainData(buffer); $('micMeter').value = Math.min(1, Math.sqrt(buffer.reduce((s, n) => s + ((n - 128) / 128) ** 2, 0) / buffer.length) * 4); meterFrame = requestAnimationFrame(meter); } meter();
     stream.getAudioTracks()[0].onended = () => { stopMic(); micStatus('Microphone disconnected.'); };
   } catch (error) { await stopMic(); micStatus(error.name === 'NotAllowedError' ? 'Microphone permission was denied. Allow it in browser settings.' : 'Microphone unavailable. Pair it in Windows Sound > Input, then try again.'); }
-  finally { $('connectMic').disabled = false; }
+  finally { recordingControls(); }
 }
 $('connectMic').onclick = () => connectMic();
 $('micDevice').onchange = () => connectMic($('micDevice').value);
@@ -157,4 +249,6 @@ $('micGain').oninput = updateGain;
 try { $('songLanguage').value = localStorage.getItem('home-karaoke-song-language') === 'ko' ? 'ko' : 'en'; } catch {}
 if (!$('status').dataset.message) status('Ready');
 micStatus('Not connected');
+recordStatus(recordingSupported ? 'Ready to record audio.' : 'Audio recording is unavailable in this browser. Open the HTTPS site in a supported browser.');
+recordingControls();
 setLanguage(uiLanguage); updateSearch(''); icons();

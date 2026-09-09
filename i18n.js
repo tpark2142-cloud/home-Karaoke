@@ -1,4 +1,19 @@
 const korean = {
+  'Audio recording': '오디오 녹음', 'Recording time': '녹음 시간',
+  'Source: selected microphone / room sound': '녹음 소스: 선택한 마이크 / 주변 소리',
+  'Record': '녹음', 'Stop': '정지', 'Download audio': '오디오 다운로드',
+  'Delete recording': '녹음 삭제', 'Recording {number}': '녹음 {number}',
+  'Ready to record audio.': '오디오 녹음 준비 완료.',
+  'Requesting microphone access...': '마이크 사용 권한 요청 중...',
+  'Recording microphone audio...': '마이크 소리를 녹음하는 중...',
+  'Finishing recording...': '녹음을 마무리하는 중...',
+  'Recording ready. Download it before leaving this page.': '녹음 완료. 페이지를 닫기 전에 다운로드하세요.',
+  'Recording stopped at the time or memory limit. Download your take.': '시간 또는 메모리 한도에 도달하여 녹음을 멈췄습니다. 녹음 파일을 다운로드하세요.',
+  'Recording interrupted. Any captured audio is available below.': '녹음이 중단되었습니다. 녹음된 내용이 있으면 아래에서 확인할 수 있습니다.',
+  'No audio was captured. Check your microphone and try again.': '녹음된 소리가 없습니다. 마이크를 확인한 후 다시 시도하세요.',
+  'Could not start recording. Check microphone permissions and try again.': '녹음을 시작할 수 없습니다. 마이크 권한을 확인한 후 다시 시도하세요.',
+  'Audio recording is unavailable in this browser. Open the HTTPS site in a supported browser.': '이 브라우저에서는 오디오 녹음을 사용할 수 없습니다. 지원하는 브라우저에서 HTTPS 사이트를 여세요.',
+  'Recording storage is full. Download and delete older takes first.': '녹음 저장 공간이 가득 찼습니다. 이전 녹음을 다운로드한 후 삭제하세요.',
   'Home Karaoke': '우리집 노래방',
   'YOUR LIVING ROOM, LIVE': '우리 집에서 즐기는 라이브',
   'Song title': '노래 제목', 'Song / Artist': '노래 제목 / 가수',
@@ -68,6 +83,7 @@ function setLanguage(language) {
   document.getElementById('langEn').setAttribute('aria-pressed', String(uiLanguage === 'en'));
   document.getElementById('langKo').setAttribute('aria-pressed', String(uiLanguage === 'ko'));
   renderQueue();
+  document.querySelectorAll('#recordings button').forEach(button => { button.title = t('Delete recording'); });
   if (!currentId) document.getElementById('nowPlaying').textContent = t('Your stage is ready');
   const emptyLyrics = document.querySelector('#lyricsDisplay .muted');
   if (emptyLyrics) emptyLyrics.textContent = t('No separate lyrics loaded');
