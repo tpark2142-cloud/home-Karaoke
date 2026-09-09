@@ -116,6 +116,105 @@ function videoId(value) {
   } catch { return null; }
 }
 const videoTitles = new Map();
+const lyricsLookups = new Map();
+function lyricsSearchTitle(title) {
+  return title.normalize('NFKC')
+    .replace(/\b(?:official\s*(?:music\s*)?video|official\s*audio|music\s*video|karaoke|instrumental|lyrics?|official|HD|4K|MV|M\/V)\b/gi, ' ')
+    .replace(/(?:TJ\s*노래방|KY\s*노래방|금영\s*노래방|태진\s*노래방|노래방|반주|가사)/g, ' ')
+    .replace(/[\[\](){}|_\-–—]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function normalizedSong(value) { return value.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''); }
+function nameVariants(value) {
+  return [...new Set([value, value.replace(/\([^)]*\)/g, ''), ...[...value.matchAll(/\(([^)]+)\)/g)].map(match => match[1])].map(normalizedSong).filter(Boolean))];
+}
+function lyricText(result) {
+  return typeof result.syncedLyrics === 'string' && result.syncedLyrics.trim() ? result.syncedLyrics : result.plainLyrics;
+}
+function automaticLyricsMatch(results, query) {
+  const key = normalizedSong(query);
+  const both = results.filter(result => nameVariants(result.trackName).some(track => nameVariants(result.artistName).some(artist => key === track + artist || key === artist + track)));
+  const matches = both.length ? both : results.filter(result => nameVariants(result.trackName).includes(key));
+  const identities = new Set(matches.map(result => `${normalizedSong(result.trackName)}|${normalizedSong(result.artistName)}`));
+  if (identities.size !== 1) return null;
+  return matches.find(result => typeof result.syncedLyrics === 'string' && result.syncedLyrics.trim()) || matches[0];
+}
+function renderLyricsLookup() {
+  const song = songs.find(item => item.id === currentId);
+  const lookup = song && lyricsLookups.get(song.id);
+  $('lyricsQuery').disabled = !song;
+  $('lookupLyrics').disabled = !song || lookup?.loading === true;
+  const savedMessage = song?.lyricsSource ? (/\[\d+:\d{2}/.test(song.lyrics) ? 'Timed lyrics loaded. This video may need a timing offset.' : 'Plain lyrics loaded. Scroll as you sing.') : song?.lyricsManual ? 'Your edited lyrics are kept.' : '';
+  translatedMessage($('lyricsLookupStatus'), lookup?.message || savedMessage);
+  const select = $('lyricsMatches'); select.replaceChildren();
+  select.hidden = !lookup?.results?.length;
+  if (!select.hidden) {
+    select.append(new Option(t('Choose matching lyrics'), ''));
+    lookup.results.forEach((result, index) => select.append(new Option(t('{track} | {artist} | {album} | {kind}', {
+      track: result.trackName, artist: result.artistName, album: result.albumName || '', kind: t(result.syncedLyrics ? 'Timed' : 'Plain')
+    }), String(index))));
+  }
+  const attribution = $('lyricsSource'); const source = song?.lyricsSource;
+  if (!select.hidden && source) {
+    const selected = lookup.results.findIndex(result => result.id === source.id);
+    if (selected >= 0) select.value = String(selected);
+  }
+  attribution.hidden = !Number.isSafeInteger(source?.id) || source.id < 1;
+  if (!attribution.hidden) {
+    attribution.href = `https://lrclib.net/api/get/${source.id}`;
+    attribution.textContent = `LRCLIB: ${source.trackName} / ${source.artistName}`;
+  }
+}
+function useOnlineLyrics(song, result) {
+  song.lyrics = lyricText(result); song.lyricsManual = false;
+  song.lyricsSource = {id: result.id, trackName: result.trackName, artistName: result.artistName};
+  const lookup = lyricsLookups.get(song.id);
+  lookup.token = {}; lookup.loading = false;
+  lookup.message = result.syncedLyrics ? 'Timed lyrics loaded. This video may need a timing offset.' : 'Plain lyrics loaded. Scroll as you sing.';
+  save();
+  if (song.id === currentId) { $('lyricsInput').value = song.lyrics; renderLyrics(song.lyrics); renderLyricsLookup(); }
+}
+async function findOnlineLyrics(song, query = lyricsSearchTitle(song.title), explicit = false) {
+  if (!explicit && (song.lyrics || song.lyricsManual || lyricsLookups.has(song.id))) return;
+  const token = {}; const lookup = {token, loading: true, message: 'Searching for lyrics...', results: []};
+  lyricsLookups.set(song.id, lookup);
+  const previousLyrics = song.lyrics;
+  if (song.id === currentId) renderLyricsLookup();
+  const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    if (!query.trim()) { lookup.message = 'No lyrics found. Try the song title and artist, or paste lyrics below.'; return; }
+    const response = await fetch(`https://lrclib.net/api/search?${new URLSearchParams({q: query.trim()})}`, {signal: controller.signal, credentials: 'omit'});
+    if (!response.ok) throw new Error('Lyrics unavailable');
+    const data = await response.json();
+    if (!Array.isArray(data)) throw new Error('Invalid lyrics response');
+    if (lyricsLookups.get(song.id) !== lookup || lookup.token !== token || !songs.includes(song) || song.lyrics !== previousLyrics) return;
+    lookup.results = data.filter(result => result && Number.isSafeInteger(result.id) && result.id > 0 && typeof result.trackName === 'string' && typeof result.artistName === 'string' && !result.instrumental && typeof lyricText(result) === 'string' && lyricText(result).trim() && lyricText(result).length <= 200000).slice(0, 20);
+    const match = automaticLyricsMatch(lookup.results, query);
+    if (match && !song.lyrics && !song.lyricsManual) useOnlineLyrics(song, match);
+    else lookup.message = lookup.results.length ? 'Choose the matching song below.' : 'No lyrics found. Try the song title and artist, or paste lyrics below.';
+  } catch {
+    if (lyricsLookups.get(song.id) === lookup && lookup.token === token) lookup.message = 'Lyrics service unavailable. Try again, or paste lyrics below.';
+  } finally {
+    clearTimeout(timeout); lookup.loading = false;
+    if (song.id === currentId && lyricsLookups.get(song.id) === lookup) renderLyricsLookup();
+  }
+}
+$('lyricsLookupForm').onsubmit = event => {
+  event.preventDefault(); const song = songs.find(item => item.id === currentId);
+  if (song) findOnlineLyrics(song, $('lyricsQuery').value, true);
+};
+$('lyricsMatches').onchange = () => {
+  const song = songs.find(item => item.id === currentId);
+  const index = $('lyricsMatches').value;
+  const result = song && index !== '' && lyricsLookups.get(song.id)?.results[Number(index)];
+  if (result) useOnlineLyrics(song, result);
+};
+function preserveEditedLyrics() {
+  const song = songs.find(item => item.id === currentId); if (!song) return;
+  song.lyricsManual = true; delete song.lyricsSource;
+  lyricsLookups.set(song.id, {token: {}, loading: false, results: [], message: 'Your edited lyrics are kept.'});
+  renderLyricsLookup();
+}
+$('lyricsInput').addEventListener('input', preserveEditedLyrics);
 const pendingTitles = new Map();
 let autoTitle = '', autoTitleId = null, titleEditRevision = 0, linkRevision = 0, titleTimer, addingSong = false;
 const titleStatus = (message) => translatedMessage($('titleStatus'), message);
@@ -175,10 +274,11 @@ function renderQueue() {
     const remove = document.createElement('button'); remove.className = 'remove'; remove.title = t('Remove {title}', {title: song.title}); remove.setAttribute('aria-label', remove.title); remove.innerHTML = '<i data-lucide="x"></i>';
     remove.onclick = () => {
       songs = songs.filter(s => s.id !== song.id);
+      lyricsLookups.delete(song.id);
       if (currentId === song.id) {
         playerReady && player.stopVideo(); currentId = null; $('nowPlaying').textContent = t('Your stage is ready'); $('emptyStage').hidden = false; $('emptyStage').style.display = ''; $('lyricsInput').value = ''; renderLyrics('');
       }
-      save(); renderQueue();
+      save(); renderQueue(); renderLyricsLookup();
     };
     li.append(play, remove); $('queue').append(li);
   });
@@ -190,6 +290,8 @@ function selectSong(id) {
   currentId = id; $('nowPlaying').textContent = song.title;
   $('openYoutube').href = `https://www.youtube.com/watch?v=${song.videoId}`;
   $('lyricsInput').value = song.lyrics; $('offset').value = song.offset; renderLyrics(song.lyrics);
+  $('lyricsQuery').value = lyricsSearchTitle(song.title);
+  renderLyricsLookup(); findOnlineLyrics(song);
   $('emptyStage').style.display = 'none';
   if (playerReady) { player.loadVideoById(song.videoId); status('Ready. Press play in the video if playback does not start.'); }
   else status('Connecting to YouTube...');
@@ -209,6 +311,7 @@ $('songForm').onsubmit = async (event) => {
     if (urlRevision !== linkRevision || videoId($('videoUrl').value.trim()) !== id) return;
     const song = {id: crypto.randomUUID(), videoId: id, title: $('songTitle').value.trim() || `YouTube ${id}`, lyrics: '', offset: 0};
     songs.push(song); save(); renderQueue(); if (!currentId) selectSong(song.id);
+    else findOnlineLyrics(song);
     $('videoUrl').value = ''; $('songTitle').value = '';
     autoTitle = ''; autoTitleId = null; linkRevision++; titleEditRevision++; titleStatus('');
   } finally { addingSong = false; submit.disabled = false; }
@@ -254,6 +357,7 @@ function renderLyrics(text) {
 }
 function applyLyrics() {
   if ($('lyricsInput').value.length > 200000) return status('Lyrics are too large. Maximum size is 200 KB.');
+  preserveEditedLyrics();
   renderLyrics($('lyricsInput').value);
   const song = songs.find(s => s.id === currentId);
   if (song) { song.lyrics = $('lyricsInput').value; song.offset = Number($('offset').value) || 0; save(); }
@@ -261,7 +365,11 @@ function applyLyrics() {
 }
 $('applyLyrics').onclick = applyLyrics;
 $('clearLyrics').onclick = () => { $('lyricsInput').value = ''; applyLyrics(); };
-$('offset').onchange = applyLyrics;
+$('offset').onchange = () => {
+  const song = songs.find(item => item.id === currentId);
+  if (song) { song.offset = Number($('offset').value) || 0; save(); }
+  activeLine = -1;
+};
 $('lyricsFile').onchange = async (e) => {
   const file = e.target.files[0]; if (!file) return;
   if (file.size > 200000) return status('Lyrics file is too large. Maximum size is 200 KB.');

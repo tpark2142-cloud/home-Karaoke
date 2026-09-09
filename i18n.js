@@ -1,4 +1,15 @@
 const korean = {
+  'Song and artist for lyrics': '가사 검색용 노래 제목과 가수',
+  'Find lyrics': '가사 찾기', 'Choose matching lyrics': '일치하는 가사 선택',
+  'Searching for lyrics...': '가사를 찾는 중...',
+  'Choose the matching song below.': '아래에서 맞는 곡의 가사를 선택하세요.',
+  'No lyrics found. Try the song title and artist, or paste lyrics below.': '가사를 찾지 못했습니다. 노래 제목과 가수로 다시 검색하거나 아래에 가사를 붙여넣으세요.',
+  'Lyrics service unavailable. Try again, or paste lyrics below.': '가사 서비스에 연결하지 못했습니다. 다시 시도하거나 아래에 가사를 붙여넣으세요.',
+  'Timed lyrics loaded. This video may need a timing offset.': '시간 정보가 있는 가사를 불러왔습니다. 영상에 맞게 가사 시간을 조절할 수 있습니다.',
+  'Plain lyrics loaded. Scroll as you sing.': '일반 가사를 불러왔습니다. 노래에 맞춰 스크롤하세요.',
+  'Your edited lyrics are kept.': '직접 편집한 가사를 유지합니다.',
+  '{track} | {artist} | {album} | {kind}': '{track} | {artist} | {album} | {kind}',
+  'Timed': '시간 가사', 'Plain': '일반 가사',
   'Loading video title...': '영상 제목을 불러오는 중...',
   'Video title filled automatically.': '영상 제목이 자동으로 입력되었습니다.',
   'Could not load the video title. You can enter a title yourself.': '영상 제목을 불러오지 못했습니다. 제목을 직접 입력할 수 있습니다.',
@@ -86,6 +97,7 @@ function setLanguage(language) {
   document.getElementById('langEn').setAttribute('aria-pressed', String(uiLanguage === 'en'));
   document.getElementById('langKo').setAttribute('aria-pressed', String(uiLanguage === 'ko'));
   renderQueue();
+  renderLyricsLookup();
   document.querySelectorAll('#recordings button').forEach(button => { button.title = t('Delete recording'); });
   if (!currentId) document.getElementById('nowPlaying').textContent = t('Your stage is ready');
   const emptyLyrics = document.querySelector('#lyricsDisplay .muted');

@@ -15,6 +15,12 @@
     .search-row { align-items: center; flex-wrap: wrap; }
     .search-language { width: 170px; flex-shrink: 0; }
     #titleStatus { color: var(--muted); font-size: 12px; line-height: 1.5; min-height: 18px; margin: 8px 0 0; }
+    .lyrics-lookup { display: flex; gap: 8px; margin-bottom: 10px; }
+    .lyrics-lookup input { flex: 1; min-width: 0; }
+    #lyricsLookupStatus { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 8px 0; }
+    #lyricsMatches { margin-bottom: 12px; }
+    #lyricsSource { margin-bottom: 12px; overflow-wrap: anywhere; }
+    #lyricsSource[hidden] { display: none; }
     .editor-actions > button { min-width: 100px; white-space: nowrap; }
     .recording-section { border-bottom: 1px solid #33393b; padding-bottom: 24px; margin-bottom: 24px; }
     .recording-controls { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -54,6 +60,10 @@
       <p id="status" role="status">Ready</p>
       <section class="lyrics-section" aria-label="Lyrics">
         <div class="section-heading"><h2 data-i18n>Lyrics</h2><div class="tools"><label class="compact"><span data-i18n>Timing offset (s)</span><input id="offset" type="number" min="-60" max="60" step="0.5" value="0"></label><button id="fontDown" title="Smaller lyrics" aria-label="Smaller lyrics"><i data-lucide="minus"></i></button><button id="fontUp" title="Larger lyrics" aria-label="Larger lyrics"><i data-lucide="plus"></i></button></div></div>
+        <form id="lyricsLookupForm" class="lyrics-lookup"><input id="lyricsQuery" aria-label="Song and artist for lyrics" placeholder="Song / Artist" maxlength="160" disabled><button id="lookupLyrics" type="submit" title="Find lyrics" aria-label="Find lyrics" disabled><i data-lucide="search"></i></button></form>
+        <p id="lyricsLookupStatus" role="status"></p>
+        <select id="lyricsMatches" aria-label="Choose matching lyrics" hidden></select>
+        <a id="lyricsSource" href="https://lrclib.net" target="_blank" rel="noopener" hidden>LRCLIB</a>
         <div id="lyricsDisplay" tabindex="0"><p class="muted">No separate lyrics loaded</p></div>
         <details><summary data-i18n>Edit lyrics / Import LRC</summary><textarea id="lyricsInput" rows="7" aria-label="Lyrics text" placeholder="Paste lyrics or timed LRC text"></textarea><div class="editor-actions"><label class="file-button"><i data-lucide="upload"></i><span data-i18n>Import .lrc / .txt</span><input id="lyricsFile" type="file" accept=".lrc,.txt,text/plain" hidden></label><button id="applyLyrics" class="primary" data-i18n>Apply lyrics</button><button id="clearLyrics" data-i18n>Clear</button></div></details>
       </section>
